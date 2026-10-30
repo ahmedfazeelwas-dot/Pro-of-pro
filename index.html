@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Iron Protocol Mobile</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #0a0a12;
+    overflow: hidden;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: white;
+  }
+  #game-container { position: relative; width: 100%; height: 100%; }
+  canvas { display: block; width: 100%; height: 100%; background: #111; }
+
+  /* ===== TOP COIN BAR (always visible) ===== */
+  #top-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 42px;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    border-bottom: 1px solid #333;
+    font-size: 18px;
+    font-weight: 600;
+  }
+  #top-bar span {
+    background: rgba(241, 196, 15, 0.15);
+    padding: 4px 16px;
+    border-radius: 20px;
+    border: 1px solid #f1c40f;
+  }
+
+  #hud {
+    position: absolute; top: 50px; left: 12px; right: 12px;
+    display: flex; justify-content: space-between;
+    pointer-events: none; font-size: 15px;
+    text-shadow: 0 1px 3px #000; z-index: 5;
+  }
+  #hud span {
+    background: rgba(0,0,0,0.65);
+    padding: 6px 12px; border-radius: 20px;
+  }
+
+  #joystick-zone {
+    position: absolute; bottom: 30px; left: 30px;
+    width: 140px; height: 140px; z-index: 10;
+  }
+  #joystick-base {
+    width: 140px; height: 140px; border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    border: 2px solid rgba(255,255,255,0.25);
+    position: relative;
+  }
+  #joystick-stick {
+    width: 60px; height: 60px; border-radius: 50%;
+    background: rgba(52,152,219,0.8);
+    position: absolute; top: 40px; left: 40px;
+    pointer-events: none;
+  }
+
+  #fire-btn {
+    position: absolute; bottom: 40px; right: 30px;
+    width: 90px; height: 90px; border-radius: 50%;
+    background: rgba(231,76,60,0.75);
+    border: 3px solid rgba(255,255,255,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; z-index: 10; user-select: none;
+  }
+  #fire-btn:active { background: rgba(231,76,60,1); transform: scale(0.92); }
+
+  #upgrade-btn {
+    position: absolute; top: 100px; right: 15px;
+    background: rgba(42,90,158,0.85);
+    border: none; color: white;
+    padding: 10px 16px; border-radius: 20px;
+    font-size: 14px; z-index: 10;
+  }
+
+  #gameover-screen {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.92);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 30;
+    padding: 20px;
+    padding-top: 60px;
+    overflow-y: auto;
+  }
+  #gameover-screen h1 {
+    color: #e74c3c;
+    font-size: 32px;
+    margin-bottom: 6px;
+  }
+  .score-box {
+    background: #1a1a2e;
+    border-radius: 12px;
+    padding: 14px 22px;
+    margin: 10px 0 16px;
+    text-align: center;
+    width: 90%;
+    max-width: 320px;
+  }
+  .score-box p { margin: 5px 0; font-size: 16px; }
+
+  .upgrade-section {
+    width: 90%;
+    max-width: 340px;
+    margin-bottom: 12px;
+  }
+  .upgrade-section h3 {
+    text-align: center;
+    color: #4a90d9;
+    margin-bottom: 8px;
+    font-size: 16px;
+  }
+  .upgrade-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 7px 0;
+    padding: 9px 12px;
+    background: #1a1a2e;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .upgrade-row button {
+    background: #2a5a9e;
+    color: white;
+    border: none;
+    padding: 7px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .upgrade-row button:disabled {
+    background: #444;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .big-btn {
+    padding: 13px 28px;
+    font-size: 16px;
+    background: #2a5a9e;
+    color: white;
+    border: none;
+    border-radius: 30px;
+  }
+  .big-btn.retry {
+    background: #27ae60;
+  }
+
+  #start-screen {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.88);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 30;
+    text-align: center;
+    padding: 20px;
+    padding-top: 60px;
+  }
+  #start-screen h1 { font-size: 36px; color: #4a90d9; margin-bottom: 8px; }
+  #start-screen p { color: #aaa; margin: 4px 0; font-size: 15px; }
+
+  .tap-hint {
+    margin-top: 18px;
+    font-size: 14px;
+    color: #888;
+  }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+  <canvas id="game"></canvas>
+
+  <!-- TOP COIN BAR - Always visible -->
+  <div id="top-bar">
+    <span>🪙 <span id="top-coins">0</span></span>
+  </div>
+
+  <div id="hud">
+    <span>❤️ <span id="health">100</span></span>
+    <span>🔫 <span id="ammo">30</span></span>
+    <span>Wave <span id="wave">1</span></span>
+  </div>
+
+  <button id="upgrade-btn" onclick="toggleMenu()">⬆ UPGRADES</button>
+
+  <div id="joystick-zone">
+    <div id="joystick-base">
+      <div id="joystick-stick"></div>
+    </div>
+  </div>
+
+  <div id="fire-btn">🔥</div>
+
+  <!-- In-game upgrade menu -->
+  <div id="menu" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+       background:rgba(15,15,25,0.96); border:2px solid #4a90d9; border-radius:16px; padding:20px;
+       width:90%; max-width:340px; z-index:20;">
+    <h2 style="text-align:center; color:#4a90d9; margin-bottom:14px;">UPGRADES</h2>
+    <div id="ingame-upgrades"></div>
+    <button onclick="toggleMenu()" style="width:100%; margin-top:14px; padding:12px; background:#2a5a9e; border:none; color:white; border-radius:8px; font-size:16px;">CLOSE</button>
+  </div>
+
+  <!-- START SCREEN -->
+  <div id="start-screen">
+    <h1>IRON PROTOCOL</h1>
+    <p>Eliminate AI • Collect Coins • Upgrade</p>
+    <p style="margin-top:12px">Joystick = Move</p>
+    <p>Right button = Shoot</p>
+    <p>Drag on right side = Aim</p>
+    <button class="big-btn" onclick="startGame()">START MISSION</button>
+  </div>
+
+  <!-- GAME OVER SCREEN -->
+  <div id="gameover-screen">
+    <h1>MISSION FAILED</h1>
+
+    <div class="score-box">
+      <p>Wave Reached: <strong id="final-wave">0</strong></p>
+      <p>Coins Left: <strong id="final-coins">0</strong></p>
+      <p>Enemies Killed: <strong id="final-kills">0</strong></p>
+    </div>
+
+    <div class="upgrade-section">
+      <h3>Optional Upgrades</h3>
+      <div id="gameover-upgrades"></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="big-btn retry" onclick="retryGame()">RETRY</button>
+    </div>
+
+    <p class="tap-hint">or just tap anywhere on the black screen</p>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ========== STATE ==========
+let gameRunning = false;
+let coins = 0;
+let wave = 1;
+let totalKills = 0;
+let isSpawningNextWave = false;
+
+const player = {
+  x: 0, y: 0,
+  radius: 16,
+  speed: 5.2,
+  health: 100,
+  maxHealth: 100,
+  angle: 0,
+  damage: 18,
+  fireRate: 220,
+  lastShot: 0,
+  ammo: 30,
+  magSize: 30,
+  reloading: false,
+  dmgLv: 1, rateLv: 1, hpLv: 1, spdLv: 1, magLv: 1
+};
+
+const UPGRADE_COSTS = {
+  damage: 30,
+  rate: 35,
+  health: 45,
+  speed: 40,
+  mag: 30
+};
+
+let bullets = [];
+let enemies = [];
+let particles = [];
+let coinDrops = [];
+
+let joy = { active: false, dx: 0, dy: 0 };
+const stick = document.getElementById('joystick-stick');
+const base = document.getElementById('joystick-base');
+const joyZone = document.getElementById('joystick-zone');
+
+let isFiring = false;
+let aimX = 0, aimY = 0;
+
+// ========== TOUCH ==========
+joyZone.addEventListener('touchstart', e => {
+  e.preventDefault();
+  joy.active = true;
+  handleJoy(e.touches[0]);
+}, {passive: false});
+
+joyZone.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (joy.active) handleJoy(e.touches[0]);
+}, {passive: false});
+
+joyZone.addEventListener('touchend', e => {
+  e.preventDefault();
+  joy.active = false;
+  joy.dx = 0; joy.dy = 0;
+  stick.style.left = '40px';
+  stick.style.top = '40px';
+}, {passive: false});
+
+function handleJoy(touch) {
+  const rect = base.getBoundingClientRect();
+  const cx = rect.left + rect.width/2;
+  const cy = rect.top + rect.height/2;
+  let dx = touch.clientX - cx;
+  let dy = touch.clientY - cy;
+  const max = 40;
+  const dist = Math.hypot(dx, dy);
+  if (dist > max) {
+    dx = (dx / dist) * max;
+    dy = (dy / dist) * max;
+  }
+  stick.style.left = (40 + dx) + 'px';
+  stick.style.top = (40 + dy) + 'px';
+  joy.dx = dx / max;
+  joy.dy = dy / max;
+}
+
+const fireBtn = document.getElementById('fire-btn');
+fireBtn.addEventListener('touchstart', e => {
+  e.preventDefault();
+  isFiring = true;
+}, {passive: false});
+fireBtn.addEventListener('touchend', e => {
+  e.preventDefault();
+  isFiring = false;
+}, {passive: false});
+
+canvas.addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  if (t.clientX > window.innerWidth * 0.45) {
+    aimX = t.clientX;
+    aimY = t.clientY;
+  }
+}, {passive: false});
+
+canvas.addEventListener('touchmove', e => {
+  const t = e.touches[0];
+  if (t.clientX > window.innerWidth * 0.45) {
+    aimX = t.clientX;
+    aimY = t.clientY;
+  }
+}, {passive: false});
+
+document.getElementById('gameover-screen').addEventListener('click', function(e) {
+  if (e.target.tagName !== 'BUTTON') {
+    retryGame();
+  }
+});
+
+// ========== UPGRADES ==========
+function buyUpgrade(type) {
+  const cost = UPGRADE_COSTS[type];
+  if (coins < cost) return;
+
+  coins -= cost;
+
+  if (type === 'damage') {
+    player.dmgLv++;
+    player.damage += 6;
+  } else if (type === 'rate') {
+    player.rateLv++;
+    player.fireRate = Math.max(90, player.fireRate - 25);
+  } else if (type === 'health') {
+    player.hpLv++;
+    player.maxHealth += 25;
+    player.health = player.maxHealth;
+  } else if (type === 'speed') {
+    player.spdLv++;
+    player.speed += 0.45;
+  } else if (type === 'mag') {
+    player.magLv++;
+    player.magSize += 8;
+    player.ammo = player.magSize;
+  }
+
+  updateHUD();
+  renderUpgradeButtons();
+}
+
+function renderUpgradeButtons() {
+  const types = [
+    { key: 'damage', label: 'Damage', lv: player.dmgLv },
+    { key: 'rate',   label: 'Fire Rate', lv: player.rateLv },
+    { key: 'health', label: 'Max Health', lv: player.hpLv },
+    { key: 'speed',  label: 'Move Speed', lv: player.spdLv },
+    { key: 'mag',    label: 'Magazine', lv: player.magLv }
+  ];
+
+  function makeHTML() {
+    return types.map(t => `
+      <div class="upgrade-row">
+        <span>${t.label} Lv ${t.lv}</span>
+        <button onclick="buyUpgrade('${t.key}')" ${coins < UPGRADE_COSTS[t.key] ? 'disabled' : ''}>
+          ${UPGRADE_COSTS[t.key]}🪙
+        </button>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('ingame-upgrades').innerHTML = makeHTML();
+  document.getElementById('gameover-upgrades').innerHTML = makeHTML();
+}
+
+function toggleMenu() {
+  const m = document.getElementById('menu');
+  m.style.display = m.style.display === 'block' ? 'none' : 'block';
+  if (m.style.display === 'block') renderUpgradeButtons();
+}
+
+// ========== GAME LOGIC ==========
+function spawnWave() {
+  isSpawningNextWave = false;
+
+  let count;
+  if (wave === 1) count = 2 + Math.floor(Math.random() * 2);      // 2-3
+  else if (wave === 2) count = 5 + Math.floor(Math.random() * 2); // 5-6
+  else if (wave === 3) count = 7 + Math.floor(Math.random() * 2); // 7-8
+  else count = Math.min(8 + wave, 16);
+
+  for (let i = 0; i < count; i++) {
+    let x, y;
+    const side = Math.floor(Math.random()*4);
+    if (side===0){x=Math.random()*canvas.width; y=-40;}
+    else if(side===1){x=canvas.width+40; y=Math.random()*canvas.height;}
+    else if(side===2){x=Math.random()*canvas.width; y=canvas.height+40;}
+    else{x=-40; y=Math.random()*canvas.height;}
+
+    const r = Math.random();
+    let enemy;
+    if (r < 0.55) {
+      enemy = {x,y,radius:14,speed:1.1 + wave*0.03, health:40+wave*8, maxHealth:40+wave*8, color:'#e74c3c', type:'grunt'};
+    } else if (r < 0.8) {
+      enemy = {x,y,radius:11,speed:1.9 + wave*0.04, health:25+wave*5, maxHealth:25+wave*5, color:'#f39c12', type:'fast'};
+    } else {
+      enemy = {x,y,radius:20,speed:0.7 + wave*0.025, health:90+wave*14, maxHealth:90+wave*14, color:'#9b59b6', type:'tank'};
+    }
+    enemies.push(enemy);
+  }
+}
+
+function spawnParticles(x,y,color,n=8){
+  for(let i=0;i<n;i++){
+    particles.push({x,y,vx:(Math.random()-0.5)*7,vy:(Math.random()-0.5)*7,life:25+Math.random()*20,color,size:2+Math.random()*3});
+  }
+}
+
+function dropCoins(x,y,amount){
+  for(let i=0;i<amount;i++){
+    coinDrops.push({x:x+(Math.random()-0.5)*25,y:y+(Math.random()-0.5)*25,vx:(Math.random()-0.5)*2.5,vy:(Math.random()-0.5)*2.5,life:280,value:1});
+  }
+}
+
+function update() {
+  if (!gameRunning) return;
+
+  player.x += joy.dx * player.speed;
+  player.y += joy.dy * player.speed;
+  player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+  player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+
+  if (aimX && aimY) {
+    player.angle = Math.atan2(aimY - player.y, aimX - player.x);
+  }
+
+  const now = Date.now();
+  if (isFiring && player.ammo > 0 && now - player.lastShot > player.fireRate) {
+    player.lastShot = now;
+    player.ammo--;
+    const spread = (Math.random()-0.5)*0.1;
+    bullets.push({
+      x: player.x + Math.cos(player.angle)*22,
+      y: player.y + Math.sin(player.angle)*22,
+      vx: Math.cos(player.angle+spread)*12,
+      vy: Math.sin(player.angle+spread)*12,
+      damage: player.damage,
+      life: 55
+    });
+    updateHUD();
+  }
+
+  if (player.ammo <= 0 && !player.reloading) {
+    player.reloading = true;
+    setTimeout(()=>{ player.ammo = player.magSize; player.reloading = false; updateHUD(); }, 1100);
+  }
+
+  for (let i=bullets.length-1;i>=0;i--){
+    const b = bullets[i];
+    b.x += b.vx; b.y += b.vy; b.life--;
+    if (b.life<=0 || b.x<0||b.x>canvas.width||b.y<0||b.y>canvas.height){ bullets.splice(i,1); continue; }
+
+    for (let j=enemies.length-1;j>=0;j--){
+      const e = enemies[j];
+      if (Math.hypot(b.x-e.x,b.y-e.y) < e.radius+5){
+        e.health -= b.damage;
+        spawnParticles(b.x,b.y,'#fff',5);
+        bullets.splice(i,1);
+        if (e.health <= 0){
+          spawnParticles(e.x,e.y,e.color,14);
+          dropCoins(e.x,e.y, e.type==='tank'?5 : e.type==='fast'?2 : 3);
+          enemies.splice(j,1);
+          totalKills++;
+        }
+        break;
+      }
+    }
+  }
+
+  for (let i=enemies.length-1;i>=0;i--){
+    const e = enemies[i];
+    const ang = Math.atan2(player.y-e.y, player.x-e.x);
+    e.x += Math.cos(ang)*e.speed;
+    e.y += Math.sin(ang)*e.speed;
+
+    if (Math.hypot(e.x-player.x,e.y-player.y) < e.radius+player.radius){
+      player.health -= 0.35;
+      if (player.health <= 0){ player.health=0; endGame(); }
+      updateHUD();
+    }
+  }
+
+  for (let i=coinDrops.length-1;i>=0;i--){
+    const c = coinDrops[i];
+    c.x += c.vx; c.y += c.vy;
+    c.vx *= 0.94; c.vy *= 0.94;
+    c.life--;
+    if (Math.hypot(c.x-player.x,c.y-player.y) < 32){
+      coins += c.value;
+      coinDrops.splice(i,1);
+      updateHUD();
+    } else if (c.life<=0) coinDrops.splice(i,1);
+  }
+
+  for (let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.life--;
+    if (p.life<=0) particles.splice(i,1);
+  }
+
+  if (enemies.length === 0 && gameRunning && !isSpawningNextWave) {
+    isSpawningNextWave = true;
+    wave++;
+    document.getElementById('wave').textContent = wave;
+    setTimeout(spawnWave, 1300);
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#0d0d15';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  ctx.strokeStyle = '#1a1a28';
+  ctx.lineWidth = 1;
+  for(let x=0;x<canvas.width;x+=50){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+  for(let y=0;y<canvas.height;y+=50){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+
+  coinDrops.forEach(c=>{
+    ctx.beginPath();
+    ctx.arc(c.x,c.y,7,0,Math.PI*2);
+    ctx.fillStyle = '#f1c40f';
+    ctx.fill();
+  });
+
+  particles.forEach(p=>{
+    ctx.globalAlpha = Math.min(1, p.life/40);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x,p.y,p.size,p.size);
+    ctx.globalAlpha = 1;
+  });
+
+  bullets.forEach(b=>{
+    ctx.beginPath();
+    ctx.arc(b.x,b.y,4,0,Math.PI*2);
+    ctx.fillStyle = '#3498db';
+    ctx.fill();
+  });
+
+  enemies.forEach(e=>{
+    ctx.beginPath();
+    ctx.arc(e.x,e.y,e.radius,0,Math.PI*2);
+    ctx.fillStyle = e.color;
+    ctx.fill();
+    const pct = e.health/e.maxHealth;
+    ctx.fillStyle = '#333';
+    ctx.fillRect(e.x-16,e.y-e.radius-12,32,5);
+    ctx.fillStyle = pct>0.35?'#2ecc71':'#e74c3c';
+    ctx.fillRect(e.x-16,e.y-e.radius-12,32*pct,5);
+  });
+
+  ctx.save();
+  ctx.translate(player.x, player.y);
+  ctx.rotate(player.angle);
+  ctx.beginPath();
+  ctx.arc(0,0,player.radius,0,Math.PI*2);
+  ctx.fillStyle = '#3498db';
+  ctx.fill();
+  ctx.fillStyle = '#2c3e50';
+  ctx.fillRect(10,-5,24,10);
+  ctx.restore();
+}
+
+function updateHUD(){
+  document.getElementById('health').textContent = Math.max(0, Math.floor(player.health));
+  document.getElementById('ammo').textContent = player.reloading ? '...' : player.ammo;
+  document.getElementById('top-coins').textContent = coins;   // ← updates top bar
+  document.getElementById('final-coins').textContent = coins;
+}
+
+function gameLoop(){
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+function startGame(){
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('gameover-screen').style.display = 'none';
+  player.x = canvas.width/2;
+  player.y = canvas.height/2;
+  aimX = canvas.width/2 + 100;
+  aimY = canvas.height/2;
+  player.health = player.maxHealth;
+  player.ammo = player.magSize;
+  bullets = [];
+  enemies = [];
+  particles = [];
+  coinDrops = [];
+  isSpawningNextWave = false;
+  gameRunning = true;
+  spawnWave();
+  updateHUD();
+}
+
+function endGame(){
+  gameRunning = false;
+  document.getElementById('final-wave').textContent = wave;
+  document.getElementById('final-kills').textContent = totalKills;
+  renderUpgradeButtons();
+  document.getElementById('gameover-screen').style.display = 'flex';
+  updateHUD();
+}
+
+function retryGame(){
+  wave = 1;
+  totalKills = 0;
+  document.getElementById('wave').textContent = 1;
+  startGame();
+}
+
+gameLoop();
+updateHUD();
+renderUpgradeButtons();
+</script>
+</body>
+</html>
